@@ -1,0 +1,195 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+import sys
+
+ADD_SPACING_AFTER_GLYPH = True
+
+def print_warning(msg: str) -> None:
+    sys.stderr.write('\x1b[38;5;3mWARNING:\x1b[0m%s' % msg)
+
+
+# TODO Is there a StringBuffer class to inherit from
+class CharCreator:
+    res = str
+
+    def __init__(self):
+        self.csi_active = False
+        self.res = ''
+
+    # TODO why does that not work when invoked from instance methods?
+    @staticmethod
+    def _to_unicode(ch: int) -> str:
+        return chr(ch)
+
+    def fg(self, color256: int) -> 'CharCreator':
+        self.res += '\x1b[38;5;%im' % color256
+        return self
+
+    def bg(self, color256: int) -> 'CharCreator':
+        self.res += '\x1b[48;5;%im' % color256
+        return self
+
+    def b(self) -> 'CharCreator':
+        self.res += '\x1b[1m'
+        return self
+
+    def ul(self) -> 'CharCreator':
+        self.res += '\x1b[4m'
+        return self
+
+    def reset(self) -> 'CharCreator':
+        self.res += '\x1b[0m'
+        return self
+
+    def glyph(self, ch: int) -> 'CharCreator':
+        self.res += self._to_unicode(ch)
+        if ADD_SPACING_AFTER_GLYPH:
+            self.txt(' ')
+
+        return self
+
+    def txt(self, txt: str) -> 'CharCreator':
+        self.res = self.res + txt
+        return self
+
+    def to_str(self) -> str:
+        if self.csi_active:
+            self.res += 'm'
+
+        return self.res
+
+# ==== Color Definitions ===========================================================
+# Simple Alias
+cc = CharCreator
+FORMAT_COLORS = {
+        # Sequence to print before outputting a file name
+        'lc':        cc(),
+        # Sequence to print after outputting a file name
+        'rc':        cc(),
+        # Sequence to print after the command executes
+        'ec':        cc().txt('\x1b[0m'),
+        # Sequence to print after the command executes (identical to ec)
+        'rs':        cc().txt('\x1b[0m'),
+}
+
+SPECIAL = {
+        # Fallback option - should be left blank
+        'no':        cc(),
+        # Normal file / file that does not have any associated color
+        'fi':        cc().fg(7).glyph(0xe612),
+        # Directory
+        'di':        cc().fg(244).glyph(0xe5fe),
+        # Link
+        'ln':        cc().fg(123).glyph(0xf0c1),
+        # Orphaned inode
+        'or':        cc().fg(0).bg(9),
+        # Missing inode
+        'mi':        cc().fg(0).bg(9),
+        # Pipe
+        'pi':        cc().fg(123).glyph(0xfce3),
+        # Socket
+        'so':        cc().fg(51).glyph(0xe765),
+        # Block device
+        'bd':        cc().glyph(0xf069),
+        # Character device
+        'cd':        cc(),
+        # Client-server communication door
+        'do':        cc(),
+        # Executable
+        'ex':        cc().ul().fg(141),
+        # UID on execution
+        'su':        cc().fg(1),
+        # GID on execution
+        'sg':        cc().fg(2),
+        # Sticky bit set
+        'st':        cc().fg(3),
+        # Writable by others
+        'ow':        cc().fg(4),
+        # Sticky, writeable by others
+        'tw':        cc().fg(2).glyph(0xe5fe).fg(0).bg(2),
+}
+
+EXTENSIONS = {
+        # Special directories
+        '*bin':      cc().fg(1),
+        '*code':     cc().glyph(0xf668),
+
+        # Common Types
+        '.bak':      cc().fg(242).glyph(0xe621),
+        '.cfg':      cc().glyph(0xe20f),
+        '.conf':     cc().glyph(0xe20f),
+        '.config':   cc().glyph(0xe20f),
+        '.diff':     cc().bg(220).fg(0).glyph(0xf6c1),
+        '.ini':      cc().glyph(0xe20f),
+        '.patch':    cc().bg(220).fg(0).glyph(0xf457),
+        '.txt':      cc().glyph(0xe714).fg(7),
+
+        # Man pages
+
+        # Archives
+        '.bz2':      cc().glyph(0xf1c6),
+        '.gz':       cc().glyph(0xf1c6),
+        '.img':      cc().glyph(0xe240),
+        '.iso':      cc().glyph(0xfaed),
+        '.rar':      cc().glyph(0xf1c6),
+        '.tar':      cc().glyph(0xf1c6),
+        '.zip':      cc().glyph(0xf1c6),
+
+        # Programming
+        '.c':        cc().glyph(0xe61e),
+        '.cpp':      cc().glyph(0xe61d),
+        '.h':        cc().fg(244).glyph(0xe61e),
+        '.hpp':      cc().fg(244).glyph(0xe61e),
+        '.hxx':      cc().fg(244).glyph(0xe61e),
+        '.java':     cc().glyph(0xfbc8),
+        '.js':       cc().glyph(0x1f4a9).fg(94),
+        '.json':     cc().glyph(0xf668),
+        '.py':       cc().fg(3).glyph(0xe235).fg(6),
+        #'.py':       cc().glyph(0xf820).reset(),
+        '.html':     cc().fg(11).glyph(0xe60e).reset(),
+
+        'Makefile':  cc().fg(118).glyph(0xe20f),
+
+        # Programming (binaries)
+        '.a':        cc().fg(177).glyph(0xf471).reset(),
+        '.so':       cc().fg(159).glyph(0xf471).reset(),
+        '.o':        cc().fg(192).glyph(0xf471).reset(),
+        '.class':    cc().fg(242).glyph(0xfbc8),
+
+        # Shell
+        '.bash':     cc().glyph(0xf120),
+        '.fish':     cc().fg(99).glyph(0xf739).reset(),
+        '.sh':       cc().fg(0).bg(15).glyph(0xf120).reset(),
+        '.zsh':      cc().glyph(0xf120),
+}
+
+def print_format_colors() -> None:
+    for key in FORMAT_COLORS.keys():
+        val = FORMAT_COLORS[key].to_str()
+        #ret = '%s=%s:' % (key, val)
+
+        ret = key + '=' + val + ':'
+        sys.stdout.buffer.write(ret.encode('utf-8'))
+
+def print_special() -> None:
+    for key in SPECIAL.keys():
+        val = SPECIAL[key].to_str()
+        #ret = '%s=%s:' % (key, val)
+        ret = key + '=' + val + ':'
+        sys.stdout.buffer.write(ret.encode('utf-8'))
+
+def print_extensions() -> None:
+    for key in EXTENSIONS.keys():
+        val = EXTENSIONS[key].to_str()
+
+        ret = '*%s=%s:' % (key, val)
+
+        sys.stdout.buffer.write(ret.encode('utf-8'))
+
+
+if __name__ == '__main__':
+    #ret = cc().fg(3).glyph(0xf7d3).fg(18).to_str()
+    print_format_colors()
+    print_special()
+    print_extensions()
